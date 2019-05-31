@@ -1,0 +1,93 @@
+К заданию внутри
+
+week3_MySQL/
+
+приложен файл sales.sql, который создаст базу данных test, а в ней три таблицы и заполнит их данными.
+
+1. Если у вас установлен и запущен mysql 5.7 сервер и клиент, в mysql есть пользователь root с паролем passw,
+вы можете загрузить приложенный файл командой:
+
+mysql -uroot -ppassw < sales.sql
+
+После этого можно подключиться к серверу с помощью MySQL Workbench или команды:
+
+mysql -uroot -ppassw test
+
+2. Если у вас установлен docker, то можно установить и запустить mysql 5.7 так:
+
+docker run --name mysql57 -p 3306:3306 --rm -de MYSQL_ROOT_PASSWORD=passw mysql:5.7
+
+загрузить приложенный файл:
+
+docker exec -i mysql57 mysql -uroot -ppassw < sales.sql
+
+после этого можно подключиться к серверу с помощью MySQL Workbench или команды:
+
+docker exec -it mysql57 mysql -uroot -ppassw test
+
+Для корректного отображения русских букв надо выполнить SQL-запрос: set names utf8;
+
+Описание задания
+
+В базе будут три таблицы: склады (store), товары (product) и продажи (sale).
+Со складами и товарами все очевидно, а в таблице продаж каждая строчка – это продажа какого-то товара,
+с какого-то склада, в количестве quantity, на общую сумму total, дата продажи date.
+
+
+Таблицы заполнены некоторыми тестовыми данными.
+Вам дается 10 заданий, в каждом нужно написать ровно один запрос SELECT (возможно, с вложенными подзапросами),
+чтобы получить требуемую выборку. Вы должны сравнить результат, который возвращает ваш SELECT, с тем,
+что приводится в качестве правильного результата к заданию, и они должны совпадать.
+
+После того как вы напишете 10 запросов, их нужно поместить в имеющийся файл results.sql,
+каждый под комментарий с его номером.
+На сервере будут те же таблицы, но другой набор тестовых данных.
+Запросы будут выполнены по одному и результаты сверены с эталонными.
+
+.
+.
+.
+.
+.
+
+# Решение ниже!
+
+use test
+set names utf8;
+
+-- 1. Выбрать все товары (все поля)
+select * from product;
+
+-- 2. Выбрать названия всех автоматизированных складов
+select name from store;
+
+-- 3. Посчитать общую сумму в деньгах всех продаж
+select sum(total) from sale;
+
+-- 4. Получить уникальные store_id всех складов, с которых была хоть одна продажа
+select distinct store_id from sale where total>0;
+
+-- 5. Получить уникальные store_id всех складов, с которых не было ни одной продажи
+select distinct store.store_id from store
+left join sale on store.store_id = sale.store_id where sale.store_id is NULL;
+
+-- 6. Получить для каждого товара название и среднюю стоимость единицы товара avg(total/quantity), если товар не продавался, он не попадает в отчет.
+select p.name, avg(total/quantity) from product as p
+left join sale using(product_id)
+group by p.name having avg(total/quantity) > 0;
+
+-- 7. Получить названия всех продуктов, которые продавались только с единственного склада
+select name from product join sale using(product_id)
+group by product_id having count(distinct store_id) = 1;
+
+-- 8. Получить названия всех складов, с которых продавался только один продукт
+select name from store join sale using(store_id)
+group by store_id having count(distinct product_id) = 1;
+
+-- 9. Выберите все ряды (все поля) из продаж, в которых сумма продажи (total) максимальна (равна максимальной из всех встречающихся)
+select sale_id, product_id, store_id, quantity, total, date from sale
+where total = (select max(total) from sale);
+
+-- 10. Выведите дату самых максимальных продаж, если таких дат несколько, то самую раннюю из них
+select date from sale
+group by date order by sum(total) desc, date asc limit 1;
